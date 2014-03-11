@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Interaction Network</title>
+		<script type="text/javascript" src="d3.js"></script>
+        <script type="text/javascript" src="superformula.js"></script> 
+        <script type="text/javascript" src="pathway_v1.js"></script>
+        <script type="text/javascript" src="singleNodeView_v3.js"></script>
+        <script type="text/javascript" src="fillOutDataGene_v1.js"></script>
+        <script type="text/javascript" src="fillOutDataTerm_v1.js"></script>
+        <script type="text/javascript" src="bubbles_v2.js"></script>
+        <script type="text/javascript" src="filterReferenceTerms.js"></script>
+        <script type="text/javascript" src="interactions_v3.js"></script>
+        <script type="text/javascript" src="fillOutInteractionData_v3.js"></script>
+        <script type="text/javascript" src="createFoci_v1.js"></script>
+		<style type="text/css">
+	
+
+		.node {
+		  cursor: pointer;
+		}
+		
+		.node circle {
+		  stroke: steelblue;
+		  stroke-width: 2px;
+		}
+		
+		.node text {
+		  font: 10px sans-serif;
+		}
+				
+		
+		.link {
+		  fill: none;
+		  stroke: #ccc;
+		  stroke-width: 2px;
+		}
+	
+		</style>
+	</head>
+	<body>
+    	<div id="body"> </div>
+    <script type="text/javascript">
+
+// main_v15 release notes: Trying to fix the issues with clicking nodes that don't have any children (or only one child). 
+
+var requiredEvidences = 2; // this is a variable to filter the dataset based on the quality/quantity of evidence for protein-protein interaction
+var omitSomething=1; // this is a variable that defines whether or not we want to omit some special case gene from the interaction viewer
+
+d3.tsv("FORMATTED_OFFICIAL_GENE_SYMBOL2GOTERM_BP_ALL.txt", function(unparsed) {
+	var referenceTerms = unparsed.map(function(d) { return [ d["Gene"], d["ID"], d["Description"] ]; });
+	referenceTerms=filterReferenceTerms(referenceTerms,0.00001);
+	d3.tsv("BIOGRID_physical_interactions_only.txt", function(unparsedData) {
+		var interactionTerms = unparsedData.map(function(d) { return [ d["Gene1"], d["Gene2"], d["Evidence"], d["PubmedID"] ];});
+		d3.csv("Demo_Genes.csv", function(rawData) {
+			// we now have an array of objects which are each have gene and disease property-value pairs
+			// we need to use the reference terms array to build the input dataset object which will be an
+				// object with an array of nodes and an array of edges in it
+				// those nodes will be separated into shapes based on if they are a gene or a term
+				// and then will be colored based on their disease name
+			// Assumptions: each Genename is unique in the data array; each object in the array is Genename: value, Disease: value
+			
+			var originalGenes = [];
+			for (var i=0;i<rawData.length;i++) {
+				var thisGeneName=rawData[i].Genename;
+				var thisGeneGroup=rawData[i].Group;
+				// build the node object and add it to the node array of the data object
+				var thisNode = {"name":thisGeneName, "group":thisGeneGroup, "groupID":0, "class":"sourceNode", "shape":"rectangle","radius":30,"edgeCount":0};
+				originalGenes.push(thisNode);
+			}
+			
+			// go through the initialGenes and if a group hasn't been added to the list of groups yet, add it
+			groups=[];
+			for (var i=0;i<originalGenes.length;i++) {
+				var alreadySeen=0;
+				for (var j=0;j<groups.length;j++) {
+					if (originalGenes[i].group===groups[j]) {
+						alreadySeen=1;
+					}
+				}
+				if (alreadySeen===0) {
+					groups.push(originalGenes[i].group);
+				}
+			}
+			
+			// now, go through the initialGenes again and assign an groupID value to each node 
+			for (var i=0;i<originalGenes.length;i++) {
+				for (var j=0;j<groups.length;j++) {
+					if (originalGenes[i].group===groups[j]) {
+						originalGenes[i].groupID=j;
+					}
+				}
+			}
+			//var data=fillOutInteractionData(originalGenes,interactionTerms);
+			var data=originalGenes;
+			
+			d3.selectAll("div").call(bubbles(data,interactionTerms,referenceTerms));
+			
+			
+		})
+	})
+})
+		</script>
+	</body>
+</html>
